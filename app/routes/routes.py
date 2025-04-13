@@ -4,8 +4,20 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from typing import Optional
 from app.db import get_database_client
 from app.extract import extract_key_concepts
+import google.generativeai as genai
+from fastapi import HTTPException
+import os
+from typing import Dict, Any, List
 # Assuming extract_key_concepts is defined elsewhere or remove if not used in this file
 # from app.extract import extract_key_concepts
+
+# Configure Gemini API
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+# Only configure if key is available
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+
 
 router = APIRouter()
 
@@ -113,6 +125,68 @@ def find_common_concepts(student_concepts, other_concepts, sim_threshold=0.8):
     
     return list(common)
 
+
+# Create a middleware function that processes results from your existing implementation
+async def apply_gemini_filter(result: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Apply Gemini API as a filter layer to enhance the existing analysis.
+    This keeps all original data intact and adds Gemini's insights.
+    """
+    # Check if API key is available
+    if not GEMINI_API_KEY:
+        result["gemini_analysis_error"] = "Gemini API key not configured"
+        return result
+        
+    # Initialize Gemini model
+    try:
+        gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+        
+        # Prepare context from the existing results
+        student_concepts = result.get("student_concepts", [])
+        other_concepts = result.get("other_students_concepts", [])
+        missing_concepts = result.get("missing_concepts", [])
+        extra_concepts = result.get("extra_concepts", [])
+        common_concepts = result.get("common_concepts", [])
+        
+        # Build prompt for Gemini
+        concepts_summary = {
+            "student_concepts": student_concepts,
+            "other_concepts": other_concepts,
+            "missing_concepts": missing_concepts,
+            "extra_concepts": extra_concepts,
+            "common_concepts": common_concepts
+        }
+        
+        prompt = f"""
+        As an educational assistant, analyze these concept lists from student notes:
+        
+        Student's concepts: {', '.join(student_concepts) if student_concepts else 'None'}
+        Other students' concepts: {', '.join(other_concepts) if other_concepts else 'None'}
+        Common concepts: {', '.join(common_concepts) if common_concepts else 'None'}
+        Missing concepts: {', '.join(missing_concepts) if missing_concepts else 'None'}
+        Extra concepts: {', '.join(extra_concepts) if extra_concepts else 'None'}
+        
+        Provide a brief JSON analysis with three fields:
+        1. "conceptHierarchy": Group the concepts into related themes/categories
+        2. "learningGaps": Identify potential knowledge gaps based on missing concepts
+        3. "studyRecommendations": 1-2 specific study recommendations
+        
+        Keep it concise and factual.
+        """
+        
+        # Get Gemini's response
+        response = gemini_model.generate_content(prompt)
+        
+        # Add Gemini's analysis to the result, but keep all original data
+        result["gemini_analysis"] = response.text
+        
+        return result
+    
+    except Exception as e:
+        # In case of any error, return the original result with an error message
+        result["gemini_analysis_error"] = str(e)
+        return result
+
 # Example usage within your endpoint's logic
 @router.get("/analyze-concepts-enhanced")
 async def analyze_concepts_enhanced(
@@ -120,8 +194,9 @@ async def analyze_concepts_enhanced(
     class_id: str,
     num_concepts: Optional[int] = 10,
     similarity_threshold: Optional[float] = 0.75,
-    similarity_method: Optional[str] = "string",  # might be unused with our semantic compare
-    sim_threshold: float = 0.8,  # threshold for common concepts using semantic similarity
+    similarity_method: Optional[str] = "string",
+    sim_threshold: float = 0.8,
+    use_gemini: bool = False,  # New parameter to toggle Gemini enhancement
     db_client: AsyncIOMotorClient = Depends(get_database_client)
 ):
     # Use the async context manager to get the actual client instance
@@ -160,13 +235,21 @@ async def analyze_concepts_enhanced(
         missing_concepts = list(set(other_concepts) - set(student_concepts))
         extra_concepts = list(set(student_concepts) - set(other_concepts))
     
-        return {
+        # Create the result dictionary
+        result = {
             "other_students_concepts": other_concepts,
             "student_concepts": student_concepts,
             "missing_concepts": missing_concepts,
             "extra_concepts": extra_concepts,
             "common_concepts": common_concepts
         }
+        
+        # Apply Gemini filter if requested
+        if use_gemini:
+            print("Applying Gemini filter")
+            result = await apply_gemini_filter(result)
+    
+        return result
 
 
 

@@ -99,6 +99,7 @@ function NoteSubmitter({ lobbyId, advancedSettings }) {
           `&num_concepts=${advancedSettings.numConceptsClass}` +
           `&similarity_threshold=${advancedSettings.similarityThresholdUpdate}` +
           `&sim_threshold=${advancedSettings.similarityThresholdAnalyze}`,
+          `&use_gemini=true`,
         {
           method: 'GET',
           headers: {
