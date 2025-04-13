@@ -1,0 +1,23 @@
+name = "cruzhacks2025-api"
+main = "worker.js"
+compatibility_date = "2023-11-16"
+usage_model = "bundled"
+
+[vars]
+GEMINI_API_KEY = "AIzaSyATW4-HShWRk5eMdpj7F_mTJxP1Ho_fIQw"
+FRONTEND_URL = "https://cruzhacks2025.pages.dev"
+
+# Uncomment these once you've created the resources in Cloudflare
+# [durable_objects]
+# bindings = [
+#   { name = "CONNECTION_MANAGER", class_name = "ConnectionManager" }
+# ]
+
+# [[kv_namespaces]]
+# binding = "AUTH_STORE"
+# id = "your-kv-namespace-id"
+
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "cruzhacks2025"
+# database_id = "your-d1-database-id" 

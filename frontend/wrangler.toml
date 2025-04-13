@@ -1,0 +1,15 @@
+name = "cruzhacks2025-frontend"
+type = "webpack"
+account_id = "" # Your Cloudflare account ID
+workers_dev = true
+compatibility_date = "2023-11-16"
+
+[site]
+bucket = "./build"
+entry-point = "."
+
+[build]
+command = "npm run build"
+
+[build.environment]
+REACT_APP_API_BASE_URL = "https://cruzhacks2025-api.workers.dev" 
