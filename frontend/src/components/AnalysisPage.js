@@ -61,15 +61,17 @@ function AnalysisPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-r from-purple-800 to-purple-600 text-white py-10 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-100 via-emerald-200 to-green-300 text-gray-900 py-10 px-4 animate-fade-in">
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-8">
+  
         {/* Main Content */}
-        <div className="flex-1 bg-white/10 p-8 rounded-2xl shadow-2xl">
-          <h1 className="text-4xl font-bold mb-6 text-white border-b border-purple-200 pb-2">
-            Your Submitted Notes
+        <div className="flex-1 bg-white/60 backdrop-blur-md p-10 rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] transition-transform hover:scale-[1.01]">
+          <h1 className="text-5xl font-extrabold mb-8 text-emerald-800 border-b-2 border-emerald-300 pb-4 tracking-tight drop-shadow-md flex items-center gap-2">
+            Your Analyzed Submission
           </h1>
+  
           {notesContent.length === 0 ? (
-            <p className="text-gray-300 italic">No notes found for this class and user.</p>
+            <p className="text-gray-700 italic">No notes found for this class and user.</p>
           ) : (
             notesContent.map((note, index) => (
               <textarea
@@ -80,20 +82,25 @@ function AnalysisPage() {
                   updated[index] = e.target.value;
                   setNotesContent(updated);
                 }}
-                className="w-full bg-white text-black p-4 rounded-xl mb-4 shadow-md resize-none whitespace-pre-wrap"
+                className="w-full bg-white text-gray-900 p-5 rounded-xl mb-6 shadow-md resize-none whitespace-pre-wrap transition focus:ring-4 focus:ring-emerald-300"
                 rows={10}
               />
             ))
           )}
         </div>
-
+  
         {/* Sidebar for Missing Concepts */}
         {missingConcepts && missingConcepts.length > 0 && (
-          <aside className="w-full md:w-1/3 bg-white/20 p-6 rounded-2xl shadow-lg">
-            <h2 className="text-2xl font-semibold mb-4 border-b border-white/30 pb-2"> </h2>
+          <aside className="w-full md:w-1/3 bg-white/70 backdrop-blur-md p-8 rounded-3xl shadow-lg border border-white/20">
+            <h2 className="text-xl font-semibold mb-5 text-emerald-900 border-b border-white/50 pb-2 drop-shadow-sm">
+            Additional Key Concepts
+            </h2>
             <ul className="space-y-3">
               {missingConcepts.map((concept, index) => (
-                <li key={index} className="bg-purple-700 bg-opacity-80 p-3 rounded shadow">
+                <li
+                  key={index}
+                  className="bg-gradient-to-r from-emerald-800 to-green-700 text-white text-sm p-3 rounded-xl shadow hover:scale-105 transition-transform"
+                >
                   {concept}
                 </li>
               ))}
@@ -103,6 +110,9 @@ function AnalysisPage() {
       </div>
     </div>
   );
+  
+  
+  
 }
 
 export default AnalysisPage;
