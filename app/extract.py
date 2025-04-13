@@ -16,6 +16,10 @@ def normalize_phrase(text: str) -> str:
     return re.sub(r'[\W_]+', ' ', text.lower()).strip()
 
 def is_similar(phrase_a: str, phrase_b: str, threshold: float = 0.75, method: str = 'string') -> bool:
+    """
+    Compare two phrases for similarity using either string matching
+    or semantic (cosine) similarity between their embeddings.
+    """
     if method == 'string':
         return SequenceMatcher(None, normalize_phrase(phrase_a), normalize_phrase(phrase_b)).ratio() >= threshold
     elif method == 'semantic':
@@ -33,7 +37,9 @@ def filter_similar_phrases(phrases: List[str], threshold: float = 0.75, method: 
     return filtered
 
 def extract_key_concepts(text: str, num_concepts: int = 5, threshold: float = 0.75, similarity_method: str = 'string') -> List[str]:
-    # Initialize RAKE with English stopwords from NLTK
+    """
+    Use RAKE to extract and then filter key concepts from text.
+    """
     rake = Rake(stopwords=stopwords.words('english'))
     rake.extract_keywords_from_text(text)
     ranked = rake.get_ranked_phrases()

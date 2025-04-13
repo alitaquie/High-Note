@@ -93,6 +93,25 @@ async def get_lobby_by_id(
             response["password"] = lobby.get("password", None)
             
         return response
+@router.get("/lobbies/{lobby_id}/advanced-settings")
+async def get_advanced_settings(
+    lobby_id: str,
+    current_user: User = Depends(get_current_user),
+    db_client: AsyncIOMotorClient = Depends(get_database_client)
+):
+    async with get_database_client() as client:
+        db = client.notes_db
+        lobby = await db.lobbies.find_one({"_id": ObjectId(lobby_id)})
+        if not lobby:
+            raise HTTPException(status_code=404, detail="Lobby not found")
+            
+        adv_settings = lobby.get("advanced_settings")
+        if not adv_settings:
+            raise HTTPException(
+                status_code=400, 
+                detail="Advanced settings are not available or not fully configured. Please try again later."
+            )
+        return {"advanced_settings": adv_settings}
 
 # Existing delete endpoint (still present; used elsewhere)
 @router.delete("/lobbies/{lobby_id}")
@@ -208,3 +227,4 @@ async def update_lobby_settings(
             "message": "Lobby settings updated successfully",
             "advanced_settings": updated_lobby.get("advanced_settings")
         }
+    
