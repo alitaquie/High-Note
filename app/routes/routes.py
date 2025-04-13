@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from pydantic import BaseModel # Import BaseModel
 from motor.motor_asyncio import AsyncIOMotorClient
-from typing import Optional
+from typing import Optional, List
 from app.db import get_database_client
 from app.extract import extract_key_concepts
 import PyPDF2
 import google.generativeai as genai
 from fastapi import HTTPException
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any
 import json
 from dotenv import load_dotenv
 
@@ -373,6 +373,69 @@ async def get_student_notes(
         
         return {
             "notes": [note["content"] for note in notes if "content" in note]
+        }
+
+# Endpoint to update notes with High Note enhanced content
+class UpdateNotesPayload(BaseModel):
+    user_id: str
+    class_id: str
+    notes: List[str]
+
+@router.post("/update-notes")
+async def update_notes(
+    payload: UpdateNotesPayload,
+    db_client: AsyncIOMotorClient = Depends(get_database_client)
+):
+    async with get_database_client() as client:
+        db = client.notes_db
+        
+        # First delete existing notes for this user/class
+        await db.notes.delete_many({
+            "user_id": payload.user_id,
+            "class_id": payload.class_id
+        })
+        
+        # Then insert the new notes
+        new_notes = []
+        for note_content in payload.notes:
+            new_notes.append({
+                "user_id": payload.user_id,
+                "class_id": payload.class_id,
+                "content": note_content
+            })
+        
+        if new_notes:
+            await db.notes.insert_many(new_notes)
+        
+        # Also trigger an update to the student concepts
+        try:
+            # Get the latest inserted notes
+            note_docs = await db.notes.find({
+                "user_id": payload.user_id, 
+                "class_id": payload.class_id
+            }).to_list(length=None)
+            
+            if note_docs:
+                # Combine content for concept extraction
+                aggregated_text = " ".join([doc["content"] for doc in note_docs if "content" in doc])
+                
+                # Extract concepts
+                concepts = extract_key_concepts(aggregated_text)
+                
+                # Update student concepts
+                await db.student_concepts.update_one(
+                    {"user_id": payload.user_id, "class_id": payload.class_id},
+                    {"$set": {"concepts": concepts}},
+                    upsert=True
+                )
+        except Exception as e:
+            print(f"Error updating concepts after note update: {e}")
+            # We don't want to fail the whole request if just the concept update fails
+            pass
+        
+        return {
+            "message": "Notes updated successfully",
+            "count": len(new_notes)
         }
 
 @router.get("/test-gemini")

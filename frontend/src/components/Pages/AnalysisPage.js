@@ -114,104 +114,143 @@ function AnalysisPage() {
     
     // Create annotations for each paragraph
     let annotatedContent = '';
+    
+    // Extract data from Gemini analysis to use in annotations
     const coveredTopics = geminiAnalysis.topicCoverage || [];
+    const missingTopics = geminiAnalysis.missingTopics || [];
+    const strengthPoints = geminiAnalysis.strengthsAndWeaknesses?.strengths || [];
+    const weaknessPoints = geminiAnalysis.strengthsAndWeaknesses?.weaknesses || [];
+    const recommendations = geminiAnalysis.studyRecommendations || [];
     
-    // Create more detailed annotations for each topic
-    const topicAnnotations = {
-      'Arrays': [
-        "You may want to highlight how the professor mentioned the quick access time of arrays—constant time (O(1)) for indexed lookups—and contrast that with the O(n) cost of inserting elements in the middle.",
-        "Consider noting that this quick access is ideal for scenarios requiring frequent lookups by position. However, arrays can be less suitable when insertions or deletions occur frequently, as these operations require shifting elements, leading to O(n) complexity.",
-        "It would be valuable to mention that arrays have excellent spatial locality, which makes them cache-friendly and often faster for sequential access patterns despite their theoretical complexity.",
-        "You might want to add that arrays typically have smaller memory overhead compared to linked lists since they don't require storage of pointer fields, making them more memory-efficient for simple data types."
-      ],
-      'Linked Lists': [
-        "A linked list allows for efficient insertions and deletions at known positions without shifting elements, typically O(1) for operations at the head or tail. However, finding a specific node may still require O(n) traversal, making it less efficient for certain access patterns.",
-        "Consider discussing the memory overhead of linked lists compared to arrays. Each node requires additional memory for pointers, which can be significant with small data items.",
-        "You could mention that doubly-linked lists allow traversal in both directions but require even more memory for the additional pointers, presenting a trade-off between functionality and space efficiency.",
-        "It's worth noting that linked lists perform poorly with modern CPU caches due to their non-contiguous memory allocation, which can significantly impact real-world performance despite favorable theoretical complexity for certain operations."
-      ],
-      'Hash Tables': [
-        "It's worth emphasizing that hash tables provide average O(1) lookup time when well-implemented. Collisions, while inevitable, can be mitigated by proper resolution techniques. Consider adding a note about the trade-off between chaining (which uses extra memory) and open addressing (which may degrade performance under heavy load).",
-        "You might want to expand on how hash tables offer a balance between the fast access of arrays and the flexible sizing of linked lists, which makes them ideal for dictionary-like operations.",
-        "Consider noting that the performance of hash tables depends critically on the choice of hash function, which should distribute keys uniformly to minimize collisions.",
-        "It would be valuable to mention that while the average-case performance of hash tables is O(1), the worst-case can degrade to O(n) if many keys hash to the same value, which is why hash function selection is critical."
-      ],
-      'Hash Collisions': [
-        "You might want to elaborate on how different collision resolution strategies affect performance metrics, especially as the load factor increases.",
-        "Consider mentioning how the quality of the hash function directly impacts collision rates and overall hash table performance.",
-        "It would be helpful to explain that chaining handles collisions by creating linked lists of elements at each bucket, which maintains O(1) insertion but can degrade lookup performance to O(n) in the worst case.",
-        "You could add that open addressing techniques like linear probing, quadratic probing, and double hashing have different performance characteristics and trade-offs in terms of cache efficiency versus clustering problems."
-      ]
-    };
+    // Create a map of topics to improvement suggestions based on actual analysis
+    const topicImprovements = {};
     
-    // Additional generic technical annotations to supplement specific topic notes
-    const genericAnnotations = [
-      "Consider adding time complexity analysis (Big O notation) for the key operations discussed in class.",
-      "You might want to include more specific implementation details that were mentioned in the lecture.",
-      "It would be valuable to note the space complexity considerations for the data structures discussed.",
-      "Consider adding examples of real-world use cases where these data structures are commonly applied.",
-      "You might want to highlight the trade-offs between memory usage and computational efficiency that were discussed.",
-      "Consider adding notes about the specific edge cases or limitations that were mentioned in the lecture."
+    // Fill the map with recommendations for covered topics
+    coveredTopics.forEach(topic => {
+      // Create a list of suggestions for each topic
+      topicImprovements[topic] = [];
+      
+      // Add strength-based recommendations
+      strengthPoints.forEach(strength => {
+        if (strength.toLowerCase().includes(topic.toLowerCase())) {
+          topicImprovements[topic].push(`Continue with your strong coverage of ${topic}. ${strength}`);
+        }
+      });
+      
+      // Add weakness-based improvements
+      weaknessPoints.forEach(weakness => {
+        if (weakness.toLowerCase().includes(topic.toLowerCase())) {
+          topicImprovements[topic].push(`Consider improving your notes on ${topic}: ${weakness}`);
+        }
+      });
+      
+      // Add general recommendations related to the topic
+      recommendations.forEach(rec => {
+        if (rec.toLowerCase().includes(topic.toLowerCase())) {
+          topicImprovements[topic].push(rec);
+        }
+      });
+      
+      // If no specific recommendations were found, add generic ones
+      if (topicImprovements[topic].length === 0) {
+        topicImprovements[topic].push(`Consider adding more detailed examples and use cases for ${topic}.`);
+        topicImprovements[topic].push(`It would be helpful to include technical details and performance characteristics of ${topic}.`);
+      }
+    });
+    
+    // Add suggestions for missing topics
+    missingTopics.forEach(topic => {
+      topicImprovements[topic] = [
+        `This is a missing topic in your notes that other students covered: ${topic}.`,
+        `Consider adding a section on ${topic} to complete your understanding.`,
+        `Research ${topic} further as it appears to be important based on class material.`
+      ];
+    });
+    
+    // Create general annotations based on the quality assessment and recommendations
+    const generalAnnotations = [
+      ...(recommendations || []),
+      `Overall quality assessment: ${geminiAnalysis.qualityAssessment || 'Review and enhance your notes further.'}`,
+      ...strengthPoints.map(s => `Strength: ${s}`),
+      ...weaknessPoints.map(w => `Area to improve: ${w}`)
     ];
     
-    // Generate relevant annotations for each paragraph with multiple annotations where appropriate
+    // Generate relevant annotations for each paragraph
     for (let i = 0; i < paragraphs.length; i++) {
       const paragraph = paragraphs[i];
       
       // Add the original paragraph
       annotatedContent += paragraph + '\n';
       
-      // Determine ALL topics mentioned in this paragraph
+      // Find topics mentioned in this paragraph
       const mentionedTopics = coveredTopics.filter(topic => 
         paragraph.toLowerCase().includes(topic.toLowerCase())
       );
       
-      if (mentionedTopics.length > 0) {
-        // Add an annotation for each mentioned topic (up to 2 per paragraph)
+      // Also check for missing topics that might be briefly mentioned
+      const mentionedMissingTopics = missingTopics.filter(topic => 
+        paragraph.toLowerCase().includes(topic.toLowerCase())
+      );
+      
+      const allMentionedTopics = [...mentionedTopics, ...mentionedMissingTopics];
+      
+      if (allMentionedTopics.length > 0) {
+        // Add annotations for mentioned topics
         let annotations = [];
         
-        // Add primary annotation for the first topic
-        if (topicAnnotations[mentionedTopics[0]]) {
-          const annotationIndex = i % topicAnnotations[mentionedTopics[0]].length;
-          annotations.push(topicAnnotations[mentionedTopics[0]][annotationIndex]);
+        // Get up to 2 relevant annotations for the topics in this paragraph
+        for (let j = 0; j < Math.min(2, allMentionedTopics.length); j++) {
+          const topic = allMentionedTopics[j];
+          if (topicImprovements[topic] && topicImprovements[topic].length > 0) {
+            // Choose a different suggestion each time based on paragraph index
+            const suggestionIndex = (i + j) % topicImprovements[topic].length;
+            annotations.push(topicImprovements[topic][suggestionIndex]);
+          }
         }
         
-        // If there's a second topic mentioned, add an annotation for it too
-        if (mentionedTopics.length > 1 && topicAnnotations[mentionedTopics[1]]) {
-          const annotationIndex = (i + 1) % topicAnnotations[mentionedTopics[1]].length;
-          annotations.push(topicAnnotations[mentionedTopics[1]][annotationIndex]);
+        // If we didn't get enough topic-specific annotations, add a general one
+        if (annotations.length === 0) {
+          const generalIndex = i % generalAnnotations.length;
+          annotations.push(generalAnnotations[generalIndex]);
         }
         
-        // If we don't have enough topic-specific annotations, add a generic one
-        if (annotations.length === 0 || (i % 2 === 0 && annotations.length < 2)) {
-          annotations.push(genericAnnotations[i % genericAnnotations.length]);
-        }
-        
-        // Add each annotation separately with purple styling
+        // Add annotations with purple styling
         annotations.forEach(annotation => {
           annotatedContent += `<span style="color: #8b5cf6; font-style: italic;">(HIGH NOTE: ${annotation})</span>\n\n`;
         });
       } else {
-        // For paragraphs without detected topics, add a generic annotation with purple styling
-        const genericIndex = i % genericAnnotations.length;
-        annotatedContent += `<span style="color: #8b5cf6; font-style: italic;">(HIGH NOTE: ${genericAnnotations[genericIndex]})</span>\n\n`;
+        // For paragraphs without detected topics, add a general annotation
+        const generalIndex = i % generalAnnotations.length;
+        annotatedContent += `<span style="color: #8b5cf6; font-style: italic;">(HIGH NOTE: ${generalAnnotations[generalIndex]})</span>\n\n`;
       }
     }
     
-    // Add standalone summary section with purple styling
-    annotatedContent += '<span style="color: #8b5cf6; font-weight: bold; font-size: 1.1em;">HIGH NOTE SUMMARY (stand-alone):</span>\n\n';
+    // Add standalone summary section
+    annotatedContent += '<span style="color: #8b5cf6; font-weight: bold; font-size: 1.1em;">HIGH NOTE SUMMARY:</span>\n\n';
     
-    // Add concise summaries for each major topic with purple styling
-    if (coveredTopics.includes('Arrays')) {
-      annotatedContent += '<span style="color: #8b5cf6;">Arrays: Great for fast indexed lookups (O(1)) but inefficient (O(n)) for middle insertions and deletions.</span>\n\n';
+    // Add summary of topics and missing topics
+    if (coveredTopics.length > 0) {
+      annotatedContent += '<span style="color: #8b5cf6; font-weight: bold;">Topics Covered:</span>\n';
+      coveredTopics.forEach(topic => {
+        annotatedContent += `<span style="color: #8b5cf6;">• ${topic}</span>\n`;
+      });
+      annotatedContent += '\n';
     }
     
-    if (coveredTopics.includes('Linked Lists')) {
-      annotatedContent += '<span style="color: #8b5cf6;">Linked Lists: Flexible for insertions/removals without shifting (O(1) at known positions), though finding specific nodes is slower (O(n)).</span>\n\n';
+    if (missingTopics.length > 0) {
+      annotatedContent += '<span style="color: #8b5cf6; font-weight: bold;">Topics to Add:</span>\n';
+      missingTopics.forEach(topic => {
+        annotatedContent += `<span style="color: #8b5cf6;">• ${topic}</span>\n`;
+      });
+      annotatedContent += '\n';
     }
     
-    if (coveredTopics.includes('Hash Tables')) {
-      annotatedContent += '<span style="color: #8b5cf6;">Hash Tables: Efficient average-case lookups (O(1)) with careful management of collisions via chaining or open addressing.</span>\n\n';
+    // Add key recommendations
+    if (recommendations.length > 0) {
+      annotatedContent += '<span style="color: #8b5cf6; font-weight: bold;">Key Recommendations:</span>\n';
+      recommendations.forEach(rec => {
+        annotatedContent += `<span style="color: #8b5cf6;">• ${rec}</span>\n`;
+      });
     }
     
     return annotatedContent;
@@ -253,23 +292,27 @@ function AnalysisPage() {
     setLastAddedNote("High Note saved to your notes!");
     setTimeout(() => setShowAddedFeedback(false), 3000);
     
-    // Save to the server (uncomment when the endpoint is ready)
-    // const saveNotes = async () => {
-    //   try {
-    //     await axios.post(
-    //       'http://localhost:8000/notes/update-notes',
-    //       {
-    //         user_id: userId,
-    //         class_id: classId,
-    //         notes: [enhancedNotes]
-    //       },
-    //       { headers: { Authorization: `Bearer ${token}` } }
-    //     );
-    //   } catch (error) {
-    //     console.error('Failed to save updated notes:', error);
-    //   }
-    // };
-    // saveNotes();
+    // Save to the server
+    const saveNotes = async () => {
+      try {
+        await axios.post(
+          'http://localhost:8000/notes/update-notes',
+          {
+            user_id: userId,
+            class_id: classId,
+            notes: [enhancedNotes]
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        console.log("Successfully saved High Note to server");
+      } catch (error) {
+        console.error('Failed to save updated notes:', error);
+        setShowAddedFeedback(true);
+        setLastAddedNote("Note saved locally, but failed to sync with server");
+        setTimeout(() => setShowAddedFeedback(false), 3000);
+      }
+    };
+    saveNotes();
   };
 
   // Function to export High Note as PDF
