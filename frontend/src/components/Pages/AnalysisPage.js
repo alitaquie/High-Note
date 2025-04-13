@@ -118,37 +118,28 @@ function AnalysisPage() {
     // Extract data from Gemini analysis to use in annotations
     const coveredTopics = geminiAnalysis.topicCoverage || [];
     const missingTopics = geminiAnalysis.missingTopics || [];
-    const strengthPoints = geminiAnalysis.strengthsAndWeaknesses?.strengths || [];
-    const weaknessPoints = geminiAnalysis.strengthsAndWeaknesses?.weaknesses || [];
+    const datasetKnowledge = geminiAnalysis.datasetKnowledge || [];
     const recommendations = geminiAnalysis.studyRecommendations || [];
     
     console.log("Analysis data for High Note:", {
       topics: coveredTopics,
       missing: missingTopics,
-      strengths: strengthPoints,
-      weaknesses: weaknessPoints,
+      datasetKnowledge: datasetKnowledge,
       recommendations
     });
     
-    // Create a map of topics to improvement suggestions based on actual analysis
+    // Create a map of topics to dataset-based knowledge
     const topicImprovements = {};
     
-    // Fill the map with recommendations for covered topics
+    // Fill the map with information from dataset
     coveredTopics.forEach(topic => {
       // Create a list of suggestions for each topic
       topicImprovements[topic] = [];
       
-      // Add strength-based recommendations
-      strengthPoints.forEach(strength => {
-        if (strength.toLowerCase().includes(topic.toLowerCase())) {
-          topicImprovements[topic].push(`Continue with your strong coverage of ${topic}. ${strength}`);
-        }
-      });
-      
-      // Add weakness-based improvements
-      weaknessPoints.forEach(weakness => {
-        if (weakness.toLowerCase().includes(topic.toLowerCase())) {
-          topicImprovements[topic].push(`Consider improving your notes on ${topic}: ${weakness}`);
+      // Add dataset knowledge related to this topic
+      datasetKnowledge.forEach(knowledge => {
+        if (knowledge.toLowerCase().includes(topic.toLowerCase())) {
+          topicImprovements[topic].push(`From class dataset: ${knowledge}`);
         }
       });
       
@@ -159,37 +150,47 @@ function AnalysisPage() {
         }
       });
       
-      // If no specific recommendations were found, add generic but relevant suggestions
+      // If no specific information was found, add generic but relevant suggestions
       if (topicImprovements[topic].length === 0) {
-        topicImprovements[topic].push(`Consider adding more detailed examples related to ${topic}.`);
-        topicImprovements[topic].push(`It would be helpful to include more specific information about ${topic}.`);
+        topicImprovements[topic].push(`The dataset includes information about ${topic} that you could add to your notes.`);
       }
     });
     
-    // Add suggestions for missing topics
+    // Add knowledge for missing topics (with higher priority)
     missingTopics.forEach(topic => {
       topicImprovements[topic] = [
-        `This is a missing topic in your notes that other students covered: ${topic}.`,
-        `Consider adding a section on ${topic} to complete your understanding.`,
-        `Research ${topic} further as it appears to be important based on class material.`
+        `Missing from your notes: ${topic} is covered in the class dataset.`,
+        `Consider adding information about ${topic} from the class materials.`
       ];
+      
+      // Find any dataset knowledge related to this missing topic
+      datasetKnowledge.forEach(knowledge => {
+        if (knowledge.toLowerCase().includes(topic.toLowerCase())) {
+          topicImprovements[topic].push(`From class dataset: ${knowledge}`);
+        }
+      });
     });
     
-    // Create general annotations based on the quality assessment and recommendations
-    const generalAnnotations = [
-      ...(recommendations || []),
-      `Overall quality assessment: ${geminiAnalysis.qualityAssessment || 'Review and enhance your notes further.'}`,
-      ...strengthPoints.map(s => `Strength: ${s}`),
-      ...weaknessPoints.map(w => `Area to improve: ${w}`)
-    ];
+    // Create general annotations based on dataset knowledge
+    let generalAnnotations = [];
+    
+    // Use all dataset knowledge as potential annotations
+    if (datasetKnowledge.length > 0) {
+      generalAnnotations = datasetKnowledge.map(k => `From class dataset: ${k}`);
+    }
+    
+    // Add recommendations to general annotations
+    if (recommendations.length > 0) {
+      generalAnnotations = [...generalAnnotations, ...recommendations];
+    }
     
     // If we don't have any general annotations, use truly generic ones
     if (generalAnnotations.length === 0) {
       generalAnnotations.push(
-        "Consider adding more examples and details to your notes.",
-        "Try connecting concepts together to improve understanding.",
-        "Adding visual elements like diagrams might improve your notes.",
-        "Consider expanding on the key points mentioned."
+        "The class dataset contains additional information you could incorporate.",
+        "Other students have covered additional topics that might be relevant.",
+        "Consider exploring the class materials for additional information.",
+        "The dataset includes complementary information to your notes."
       );
     }
     
@@ -226,10 +227,10 @@ function AnalysisPage() {
           }
         }
         
-        // If we didn't get enough topic-specific annotations, add a general one
-        if (annotations.length === 0) {
-          const generalIndex = i % generalAnnotations.length;
-          annotations.push(generalAnnotations[generalIndex]);
+        // If we didn't get enough topic-specific annotations, add a dataset knowledge item
+        if (annotations.length === 0 && datasetKnowledge.length > 0) {
+          const knowledgeIndex = i % datasetKnowledge.length;
+          annotations.push(`From class dataset: ${datasetKnowledge[knowledgeIndex]}`);
         }
         
         // Add annotations with purple styling
@@ -237,9 +238,15 @@ function AnalysisPage() {
           annotatedContent += `<span style="color: #8b5cf6; font-style: italic;">(HIGH NOTE: ${annotation})</span>\n\n`;
         });
       } else {
-        // For paragraphs without detected topics, add a general annotation
-        const generalIndex = i % generalAnnotations.length;
-        annotatedContent += `<span style="color: #8b5cf6; font-style: italic;">(HIGH NOTE: ${generalAnnotations[generalIndex]})</span>\n\n`;
+        // For paragraphs without detected topics, add knowledge from the dataset
+        if (datasetKnowledge.length > 0) {
+          const knowledgeIndex = i % datasetKnowledge.length;
+          annotatedContent += `<span style="color: #8b5cf6; font-style: italic;">(HIGH NOTE: From class dataset: ${datasetKnowledge[knowledgeIndex]})</span>\n\n`;
+        } else {
+          // Fallback to general annotations if no dataset knowledge
+          const generalIndex = i % generalAnnotations.length;
+          annotatedContent += `<span style="color: #8b5cf6; font-style: italic;">(HIGH NOTE: ${generalAnnotations[generalIndex]})</span>\n\n`;
+        }
       }
     }
     
@@ -248,7 +255,7 @@ function AnalysisPage() {
     
     // Add summary of topics and missing topics
     if (coveredTopics.length > 0) {
-      annotatedContent += '<span style="color: #8b5cf6; font-weight: bold;">Topics Covered:</span>\n';
+      annotatedContent += '<span style="color: #8b5cf6; font-weight: bold;">Topics In The Dataset:</span>\n';
       coveredTopics.forEach(topic => {
         annotatedContent += `<span style="color: #8b5cf6;">• ${topic}</span>\n`;
       });
@@ -256,16 +263,25 @@ function AnalysisPage() {
     }
     
     if (missingTopics.length > 0) {
-      annotatedContent += '<span style="color: #8b5cf6; font-weight: bold;">Topics to Add:</span>\n';
+      annotatedContent += '<span style="color: #8b5cf6; font-weight: bold;">Topics From Dataset Missing In Your Notes:</span>\n';
       missingTopics.forEach(topic => {
         annotatedContent += `<span style="color: #8b5cf6;">• ${topic}</span>\n`;
       });
       annotatedContent += '\n';
     }
     
-    // Add key recommendations
+    // Add key dataset knowledge
+    if (datasetKnowledge.length > 0) {
+      annotatedContent += '<span style="color: #8b5cf6; font-weight: bold;">Key Information From Class Dataset:</span>\n';
+      datasetKnowledge.forEach(knowledge => {
+        annotatedContent += `<span style="color: #8b5cf6;">• ${knowledge}</span>\n`;
+      });
+      annotatedContent += '\n';
+    }
+    
+    // Add recommendations
     if (recommendations.length > 0) {
-      annotatedContent += '<span style="color: #8b5cf6; font-weight: bold;">Key Recommendations:</span>\n';
+      annotatedContent += '<span style="color: #8b5cf6; font-weight: bold;">Recommendations:</span>\n';
       recommendations.forEach(rec => {
         annotatedContent += `<span style="color: #8b5cf6;">• ${rec}</span>\n`;
       });

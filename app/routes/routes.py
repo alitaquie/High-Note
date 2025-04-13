@@ -500,7 +500,7 @@ async def detailed_note_analysis(
             if not student_notes:
                 raise HTTPException(status_code=404, detail="No notes found for this student in this class.")
             
-            # Get other students' notes for comparison
+            # Get other students' notes for comparison - THIS IS THE PRIMARY DATASET
             other_students_notes = await db.notes.find({
                 "class_id": class_id,
                 "user_id": {"$ne": user_id}
@@ -528,39 +528,49 @@ async def detailed_note_analysis(
             student_content_condensed = student_content[:3000] if len(student_content) > 3000 else student_content
             other_content_condensed = other_content[:3000] if len(other_content) > 3000 else other_content
             
+            # Extract key concepts from other students' notes to use as a reference dataset
+            other_students_concepts = []
+            if other_content:
+                other_students_concepts = extract_key_concepts(other_content)
+                print(f"Extracted concepts from other students: {other_students_concepts}")
+            
             try:
                 print("Initializing Gemini model...")
                 # Use the directly loaded API key to configure Gemini
                 genai.configure(api_key=api_key)
                 gemini_model = genai.GenerativeModel("gemini-1.5-flash")
                 
-                # Create a simpler prompt for Gemini analysis if there are other students' notes
+                # Create a simpler prompt for Gemini analysis that focuses on dataset content
                 if other_students_notes:
                     prompt = f"""
-                    As an educational assistant, analyze these student notes and provide feedback:
+                    As an educational assistant, analyze these notes and focus on providing valuable information from the dataset to enhance the student's notes:
                     
-                    STUDENT'S NOTES:
+                    STUDENT'S NOTES (TO BE ENHANCED):
                     {student_content_condensed}
                     
-                    NOTES FROM OTHER STUDENTS (FOR REFERENCE):
+                    DATASET (NOTES FROM OTHER STUDENTS TO USE AS REFERENCE MATERIAL):
                     {other_content_condensed}
                     
                     EXTRACTED KEY CONCEPTS FROM STUDENT'S NOTES:
                     {', '.join(student_concepts)}
                     
+                    EXTRACTED KEY CONCEPTS FROM DATASET:
+                    {', '.join(other_students_concepts)}
+                    
+                    Your task is to identify SPECIFIC content and information from the DATASET (other students' notes) that would be valuable additions to the student's notes. 
+                    
+                    Rather than general feedback about the student's notes, focus on extracting actual knowledge, facts, examples, and definitions from the dataset that would complement the student's notes.
+                    
                     Please analyze the notes and provide a JSON response with the following structure:
                     {{
-                        "topicCoverage": [List of main topics covered in the notes],
-                        "missingTopics": [Important topics covered by others but missing from the student's notes],
-                        "qualityAssessment": [Brief assessment of note quality, organization, and completeness],
-                        "strengthsAndWeaknesses": {{
-                            "strengths": [List of 2-3 strengths in the student's notes],
-                            "weaknesses": [List of 2-3 areas for improvement]
-                        }},
-                        "studyRecommendations": [2-3 specific recommendations to improve understanding]
+                        "topicCoverage": [Main topics covered in the DATASET notes - these are reference topics],
+                        "missingTopics": [Important topics from the DATASET that are missing from the student's notes],
+                        "datasetKnowledge": [List of 5-10 specific facts, definitions, or examples from the DATASET that would enhance the student's notes],
+                        "qualityAssessment": [Brief assessment focusing on what information from the DATASET would improve the student's notes],
+                        "studyRecommendations": [3-5 specific recommendations based on DATASET content]
                     }}
                     
-                    Ensure your analysis is constructive, specific, and educational.
+                    Important: Your recommendations should include actual content from the dataset, not just general study advice.
                     """
                 else:
                     # If no other students' notes, provide a standalone analysis
@@ -630,12 +640,8 @@ async def detailed_note_analysis(
                         "class_id": class_id,
                         "raw_analysis": response.text,
                         "basic_analysis": {
-                            "topicCoverage": student_concepts,
+                            "topicCoverage": other_students_concepts if other_students_concepts else student_concepts,
                             "qualityAssessment": "Analysis not available - please check raw_analysis field",
-                            "strengthsAndWeaknesses": {
-                                "strengths": [],
-                                "weaknesses": []
-                            },
                             "studyRecommendations": []
                         },
                         "error": "Failed to parse response as JSON"
