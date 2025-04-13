@@ -43,9 +43,9 @@ addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request));
 });
 
-// CORS headers for all responses
+// CORS headers for all responses - Allow all origins during development
 const corsHeaders = {
-  'Access-Control-Allow-Origin': FRONTEND_URL,
+  'Access-Control-Allow-Origin': '*',  // Allow all origins for now
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Max-Age': '86400',

@@ -2,6 +2,7 @@ name = "cruzhacks2025-api"
 main = "worker.js"
 compatibility_date = "2023-11-16"
 usage_model = "bundled"
+account_id = "79a8e716508fd7a826373d2b04ae814d"
 
 [vars]
 GEMINI_API_KEY = "AIzaSyATW4-HShWRk5eMdpj7F_mTJxP1Ho_fIQw"
