@@ -120,6 +120,13 @@ function NoteSubmitter({ lobbyId, advancedSettings }) {
         analyzeResult = {};
       }
 
+      // Check if there are enough notes for analysis
+      if (analyzeResult.status === "insufficient_notes") {
+        setError(analyzeResult.message);
+        setIsLoading(false);
+        return;
+      }
+
       // Redirect to Analysis page passing the missing concepts via router state.
       navigate(
         `/analysis?classId=${lobbyId}&userId=${username}`,

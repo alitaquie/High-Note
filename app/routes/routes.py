@@ -232,8 +232,8 @@ async def analyze_concepts_enhanced(
     class_id: str,
     num_concepts: Optional[int] = 10,
     similarity_threshold: Optional[float] = 0.75,
-    similarity_method: Optional[str] = "string",  # might be unused with our semantic compare
-    sim_threshold: float = 0.8,  # threshold for common concepts using semantic similarity
+    similarity_method: Optional[str] = "string",
+    sim_threshold: float = 0.8,
     use_gemini: bool = True,
     db_client: AsyncIOMotorClient = Depends(get_database_client)
 ):
@@ -253,8 +253,14 @@ async def analyze_concepts_enhanced(
             "user_id": user_id
         }).to_list(length=None)
     
+        # Check if there are enough notes for analysis
         if not other_notes_docs:
-            raise HTTPException(status_code=404, detail="No notes found from other students.")
+            return {
+                "status": "insufficient_notes",
+                "message": "Please wait for more students to submit notes before analysis can be performed.",
+                "details": "Analysis requires notes from multiple students to provide meaningful comparisons."
+            }
+            
         if not student_notes_docs:
             raise HTTPException(status_code=404, detail="No notes found for this student.")
     

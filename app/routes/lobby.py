@@ -15,7 +15,7 @@ router = APIRouter()
 class LobbyPayload(BaseModel):
     lobby_name: str
     description: Optional[str] = None
-    user_count: int = 1  # Default to 1 for the creator
+    user_count: int = 0  # Changed from 1 to 0
     password: Optional[str] = None  # Allow an optional password
     created_by: Optional[str] = None  # For compatibility; will use current_user in endpoint
     advanced_settings: Optional[Dict[str, Any]] = None  # Added field for advanced settings

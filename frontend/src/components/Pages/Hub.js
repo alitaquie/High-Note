@@ -38,7 +38,7 @@ const Hub = () => {
         {
           lobby_name: lobbyName,
           description: description,
-          user_count: 1, // the creator joins immediately
+          user_count: 0, // Changed from 1 to 0
           password: password,
           advanced_settings: advancedSettings
         },
