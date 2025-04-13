@@ -4,7 +4,7 @@
  */
 
 // Environment variables from wrangler.toml
-const GEMINI_API_KEY = GEMINI_API_KEY || "AIzaSyATW4-HShWRk5eMdpj7F_mTJxP1Ho_fIQw";
+const GEMINI_API_KEY = GEMINI_API_KEY || "YOUR_API_KEY_HERE";
 const FRONTEND_URL = FRONTEND_URL || "https://cruzhacks2025.pages.dev";
 
 // Main event listener for HTTP requests

@@ -80,7 +80,7 @@ This guide provides step-by-step instructions to deploy your application using C
    usage_model = "bundled"
    
    [vars]
-   GEMINI_API_KEY = "AIzaSyATW4-HShWRk5eMdpj7F_mTJxP1Ho_fIQw"
+   GEMINI_API_KEY = "YOUR_API_KEY_HERE"
    FRONTEND_URL = "https://cruzhacks2025.pages.dev"
    
    [durable_objects]

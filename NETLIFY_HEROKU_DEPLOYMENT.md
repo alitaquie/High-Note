@@ -40,7 +40,7 @@ This guide provides step-by-step instructions to deploy your CruzHacks2025 appli
    ```
    heroku config:set MONGODB_URL="your_mongodb_connection_string"
    heroku config:set JWT_SECRET="your_secure_jwt_secret"
-   heroku config:set GEMINI_API_KEY="AIzaSyATW4-HShWRk5eMdpj7F_mTJxP1Ho_fIQw"
+   heroku config:set GEMINI_API_KEY="YOUR_API_KEY_HERE"
    heroku config:set FRONTEND_URL="https://cruzhacks2025.netlify.app"
    ```
 5. Push to Heroku: `git push heroku main`

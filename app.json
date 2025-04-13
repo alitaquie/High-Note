@@ -14,7 +14,7 @@
     },
     "GEMINI_API_KEY": {
       "description": "Google Gemini API key",
-      "value": "AIzaSyATW4-HShWRk5eMdpj7F_mTJxP1Ho_fIQw"
+      "value": "YOUR_API_KEY_HERE"
     },
     "FRONTEND_URL": {
       "description": "URL of the frontend application",
