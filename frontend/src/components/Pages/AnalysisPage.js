@@ -122,6 +122,14 @@ function AnalysisPage() {
     const weaknessPoints = geminiAnalysis.strengthsAndWeaknesses?.weaknesses || [];
     const recommendations = geminiAnalysis.studyRecommendations || [];
     
+    console.log("Analysis data for High Note:", {
+      topics: coveredTopics,
+      missing: missingTopics,
+      strengths: strengthPoints,
+      weaknesses: weaknessPoints,
+      recommendations
+    });
+    
     // Create a map of topics to improvement suggestions based on actual analysis
     const topicImprovements = {};
     
@@ -151,10 +159,10 @@ function AnalysisPage() {
         }
       });
       
-      // If no specific recommendations were found, add generic ones
+      // If no specific recommendations were found, add generic but relevant suggestions
       if (topicImprovements[topic].length === 0) {
-        topicImprovements[topic].push(`Consider adding more detailed examples and use cases for ${topic}.`);
-        topicImprovements[topic].push(`It would be helpful to include technical details and performance characteristics of ${topic}.`);
+        topicImprovements[topic].push(`Consider adding more detailed examples related to ${topic}.`);
+        topicImprovements[topic].push(`It would be helpful to include more specific information about ${topic}.`);
       }
     });
     
@@ -174,6 +182,16 @@ function AnalysisPage() {
       ...strengthPoints.map(s => `Strength: ${s}`),
       ...weaknessPoints.map(w => `Area to improve: ${w}`)
     ];
+    
+    // If we don't have any general annotations, use truly generic ones
+    if (generalAnnotations.length === 0) {
+      generalAnnotations.push(
+        "Consider adding more examples and details to your notes.",
+        "Try connecting concepts together to improve understanding.",
+        "Adding visual elements like diagrams might improve your notes.",
+        "Consider expanding on the key points mentioned."
+      );
+    }
     
     // Generate relevant annotations for each paragraph
     for (let i = 0; i < paragraphs.length; i++) {
