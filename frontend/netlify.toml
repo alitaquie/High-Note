@@ -1,0 +1,11 @@
+[build]
+  command = "npm run build"
+  publish = "build"
+
+[build.environment]
+  REACT_APP_API_BASE_URL = "https://cruzhacks2025-backend.herokuapp.com"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200 

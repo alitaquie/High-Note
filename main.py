@@ -33,14 +33,18 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+# Get frontend URL from environment or use default for local development
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
 # Configure CORS to allow requests from both development and production origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3001", 
         "http://localhost:3000",
-        "https://*cruzhacks2025*.vercel.app",  # For Vercel deployment
-        "https://*railway.app"  # For Railway deployment
+        FRONTEND_URL,
+        "https://cruzhacks2025.netlify.app",
+        "https://*.netlify.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -65,6 +69,21 @@ async def websocket_endpoint(websocket: WebSocket, lobby_id: str):
         manager.disconnect(websocket, lobby_id)
         # Notify remaining clients about the disconnect
         await manager.broadcast({"event": "disconnect", "lobby_id": lobby_id}, lobby_id)
+
+# Simple endpoint to check if the server is running
+@app.get("/")
+async def root():
+    return {"message": "Welcome to CruzHacks2025 API", "status": "online"}
+
+# Environment check endpoint for debugging
+@app.get("/env-check")
+async def env_check():
+    return {
+        "gemini_api_key_exists": bool(os.getenv("GEMINI_API_KEY")),
+        "mongodb_url_exists": bool(os.getenv("MONGODB_URL")),
+        "jwt_secret_exists": bool(os.getenv("JWT_SECRET")),
+        "frontend_url": FRONTEND_URL
+    }
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,0 +1,34 @@
+{
+  "name": "CruzHacks2025 Backend",
+  "description": "Backend API for CruzHacks2025 project",
+  "repository": "https://github.com/yourusername/cruzhacks2025",
+  "keywords": ["python", "fastapi", "mongodb", "websockets"],
+  "env": {
+    "MONGODB_URL": {
+      "description": "MongoDB connection string",
+      "required": true
+    },
+    "JWT_SECRET": {
+      "description": "Secret key for JWT token generation",
+      "generator": "secret"
+    },
+    "GEMINI_API_KEY": {
+      "description": "Google Gemini API key",
+      "value": "AIzaSyATW4-HShWRk5eMdpj7F_mTJxP1Ho_fIQw"
+    },
+    "FRONTEND_URL": {
+      "description": "URL of the frontend application",
+      "value": "https://cruzhacks2025.netlify.app"
+    }
+  },
+  "addons": [
+    {
+      "plan": "mongolab:sandbox"
+    }
+  ],
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+} 

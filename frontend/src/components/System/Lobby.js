@@ -8,7 +8,12 @@ import { useAuth } from '../../context/AuthContext';
 
 // Get the API base URL from environment or use default
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-const WS_BASE_URL = API_BASE_URL.replace('http', 'ws'); // Convert http to ws for WebSocket
+
+// Convert http/https to ws/wss for WebSocket
+const WS_BASE_URL = API_BASE_URL.replace('https:', 'wss:').replace('http:', 'ws:');
+
+console.log('API URL:', API_BASE_URL);
+console.log('WebSocket URL:', WS_BASE_URL);
 
 function Lobby() {
   const { lobbyId } = useParams();

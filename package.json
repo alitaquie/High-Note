@@ -1,0 +1,33 @@
+{
+  "name": "cruzhacks2025",
+  "version": "1.0.0",
+  "description": "CruzHacks2025 project with FastAPI backend and React frontend",
+  "scripts": {
+    "start": "python -m uvicorn main:app --host 0.0.0.0 --port 8000",
+    "start:frontend": "cd frontend && npm start",
+    "start:backend": "python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "start:dev": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "build:frontend": "cd frontend && npm run build",
+    "deploy:heroku": "git push heroku main",
+    "deploy:netlify": "cd frontend && netlify deploy --prod"
+  },
+  "engines": {
+    "node": "18.x",
+    "npm": "9.x"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/cruzhacks2025.git"
+  },
+  "keywords": [
+    "react",
+    "fastapi",
+    "mongodb",
+    "websockets"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+} 
