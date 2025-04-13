@@ -1,10 +1,14 @@
 // src/components/System/Lobby.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import LobbyLayout from './LobbyLayout';
 import NoteSubmitter from '../notes/NoteSubmitter';
 import { useAuth } from '../../context/AuthContext';
+
+// Get the API base URL from environment or use default
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+const WS_BASE_URL = API_BASE_URL.replace('http', 'ws'); // Convert http to ws for WebSocket
 
 function Lobby() {
   const { lobbyId } = useParams();
@@ -15,6 +19,11 @@ function Lobby() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [isCreator, setIsCreator] = useState(false);
+  
+  // WebSocket connection
+  const [wsConnected, setWsConnected] = useState(false);
+  const webSocketRef = useRef(null);
+  const [participantCount, setParticipantCount] = useState(1);
 
   // States for Settings Modal
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -32,6 +41,67 @@ function Lobby() {
   const [password, setPassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
 
+  // WebSocket connection setup
+  useEffect(() => {
+    if (!token || !lobbyId) return;
+    
+    // Create WebSocket connection
+    const wsUrl = `${WS_BASE_URL}/ws/${lobbyId}`;
+    console.log(`Connecting to WebSocket at: ${wsUrl}`);
+    
+    const ws = new WebSocket(wsUrl);
+    webSocketRef.current = ws;
+    
+    ws.onopen = () => {
+      console.log('WebSocket connected');
+      setWsConnected(true);
+      // Send join event to notify others
+      ws.send(JSON.stringify({
+        event: 'join',
+        username: username,
+        timestamp: new Date().toISOString()
+      }));
+    };
+    
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('WebSocket message received:', data);
+        
+        // Handle different types of events
+        if (data.event === 'join') {
+          // Someone joined - could update participant count
+          setParticipantCount(prev => prev + 1);
+        } else if (data.event === 'disconnect') {
+          // Someone left
+          setParticipantCount(prev => Math.max(1, prev - 1));
+        } else if (data.event === 'new_note') {
+          // New note was added - you can trigger a refresh or directly update the UI
+          // This depends on your implementation
+        }
+      } catch (err) {
+        console.error('Error parsing WebSocket message:', err);
+      }
+    };
+    
+    ws.onclose = () => {
+      console.log('WebSocket disconnected');
+      setWsConnected(false);
+    };
+    
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      setWsConnected(false);
+    };
+    
+    // Cleanup on component unmount
+    return () => {
+      if (webSocketRef.current) {
+        webSocketRef.current.close();
+      }
+    };
+  }, [lobbyId, token, username]);
+
   // Fetch lobby details and initialize settings
   useEffect(() => {
     setLobbyDetails(null);
@@ -39,7 +109,7 @@ function Lobby() {
     setLoading(true);
 
     axios
-      .get(`http://localhost:8000/lobby/lobbies/${lobbyId}`, {
+      .get(`${API_BASE_URL}/lobby/lobbies/${lobbyId}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((response) => {
@@ -49,6 +119,10 @@ function Lobby() {
         // Initialize the settings to the advanced_settings if available.
         if (response.data?.advanced_settings) {
           setEditedSettings({ ...response.data.advanced_settings });
+        }
+        // Set initial participant count
+        if (response.data.user_count) {
+          setParticipantCount(response.data.user_count);
         }
       })
       .catch((error) => {
@@ -61,6 +135,19 @@ function Lobby() {
         setLoading(false);
       });
   }, [lobbyId, token, username]);
+
+  // Increment user count when joining the lobby
+  useEffect(() => {
+    if (lobbyId && token && !loading && lobbyDetails) {
+      axios
+        .put(`${API_BASE_URL}/lobby/lobbies/${lobbyId}/increment-user-count`, {}, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        .catch((err) => {
+          console.error("Failed to increment user count:", err);
+        });
+    }
+  }, [lobbyId, token, loading, lobbyDetails]);
 
   const handleSettingsClick = () => {
     // Reset edited settings to current lobby details (if any) when opening the modal
@@ -89,7 +176,7 @@ function Lobby() {
 
     try {
       await axios.put(
-        `http://localhost:8000/lobby/lobbies/${lobbyId}/update-settings`,
+        `${API_BASE_URL}/lobby/lobbies/${lobbyId}/update-settings`,
         { advanced_settings: editedSettings },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -99,6 +186,15 @@ function Lobby() {
         ...prev,
         advanced_settings: { ...editedSettings }
       }));
+
+      // Broadcast settings update to all users in the lobby
+      if (webSocketRef.current && webSocketRef.current.readyState === WebSocket.OPEN) {
+        webSocketRef.current.send(JSON.stringify({
+          event: 'settings_updated',
+          settings: editedSettings,
+          updatedBy: username
+        }));
+      }
 
       setShowSettingsModal(false);
     } catch (error) {
@@ -117,11 +213,19 @@ function Lobby() {
     }
 
     axios
-      .delete(`http://localhost:8000/lobby/lobbies/${lobbyId}`, {
+      .delete(`${API_BASE_URL}/lobby/lobbies/${lobbyId}`, {
         data: { password },
         headers: { Authorization: `Bearer ${token}` },
       })
       .then(() => {
+        // Notify all users that the lobby was deleted
+        if (webSocketRef.current && webSocketRef.current.readyState === WebSocket.OPEN) {
+          webSocketRef.current.send(JSON.stringify({
+            event: 'lobby_deleted',
+            deletedBy: username
+          }));
+        }
+        
         setShowSettingsModal(false);
         navigate('/');
       })
@@ -130,10 +234,54 @@ function Lobby() {
       );
   };
 
+  // Handle WebSocket events for lobby deletion
+  useEffect(() => {
+    // Function to handle lobby_deleted event
+    const handleLobbyDeleted = (data) => {
+      alert(`This lobby has been deleted by ${data.deletedBy}`);
+      navigate('/');
+    };
+
+    // Add event listener for the lobby_deleted event
+    if (webSocketRef.current) {
+      const socket = webSocketRef.current;
+      const onMessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.event === 'lobby_deleted') {
+            handleLobbyDeleted(data);
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
+        }
+      };
+      
+      socket.addEventListener('message', onMessage);
+      
+      // Clean up the event listener
+      return () => {
+        socket.removeEventListener('message', onMessage);
+      };
+    }
+  }, [navigate]);
+
   return (
     <LobbyLayout>
       <div className="min-h-screen px-6 pt-12 pb-24 bg-gradient-to-br from-indigo-900 via-purple-800 to-fuchsia-900 text-white animate-fadeIn">
         <div className="max-w-4xl mx-auto relative">
+          {/* WebSocket Status Indicator */}
+          <div className="absolute top-2 right-2">
+            <div className={`flex items-center ${wsConnected ? 'text-green-400' : 'text-red-400'}`}>
+              <div className={`w-3 h-3 rounded-full mr-2 ${wsConnected ? 'bg-green-400' : 'bg-red-400'}`}></div>
+              <span className="text-xs">{wsConnected ? 'Connected' : 'Disconnected'}</span>
+            </div>
+            {wsConnected && (
+              <div className="text-xs text-purple-300 mt-1">
+                {participantCount} {participantCount === 1 ? 'participant' : 'participants'}
+              </div>
+            )}
+          </div>
+          
           {/* Header with Settings Icon - Only show for creator */}
           {isCreator && (
             <div className="absolute -top-4 -right-4 z-10">
