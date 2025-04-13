@@ -14,7 +14,7 @@ function Lobby() {
   const navigate = useNavigate();
   const { token } = useAuth();
 
-  // Advanced settings with separate concept counts for student and class,
+  // Advanced settings with separasate concept counts for student and class,
   // plus thresholds.
   const [advancedSettings, setAdvancedSettings] = useState({
     numConceptsStudent: 10,
